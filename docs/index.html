@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MiMo TTS - 语音合成</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0a0a0a;
+      color: #e0e0e0;
+      min-height: 100vh;
+    }
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 40px 20px;
+    }
+    header {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+    header h1 {
+      font-size: 2rem;
+      background: linear-gradient(135deg, #ff6b35, #f7c948);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 8px;
+    }
+    header p {
+      color: #888;
+      font-size: 0.95rem;
+    }
+    .card {
+      background: #141414;
+      border: 1px solid #2a2a2a;
+      border-radius: 16px;
+      padding: 28px;
+      margin-bottom: 20px;
+    }
+    label {
+      display: block;
+      font-size: 0.85rem;
+      color: #999;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    textarea {
+      width: 100%;
+      min-height: 140px;
+      background: #1a1a1a;
+      border: 1px solid #333;
+      border-radius: 10px;
+      color: #e0e0e0;
+      padding: 14px;
+      font-size: 1rem;
+      resize: vertical;
+      font-family: inherit;
+      transition: border-color 0.2s;
+    }
+    textarea:focus { outline: none; border-color: #ff6b35; }
+    .row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    @media (max-width: 600px) {
+      .row { grid-template-columns: 1fr; }
+    }
+    select, input[type="text"], input[type="password"] {
+      width: 100%;
+      background: #1a1a1a;
+      border: 1px solid #333;
+      border-radius: 10px;
+      color: #e0e0e0;
+      padding: 12px 14px;
+      font-size: 0.95rem;
+      appearance: none;
+      cursor: pointer;
+      transition: border-color 0.2s;
+    }
+    select:focus, input[type="text"]:focus, input[type="password"]:focus { outline: none; border-color: #ff6b35; }
+    .select-wrap {
+      position: relative;
+    }
+    .select-wrap::after {
+      content: '▾';
+      position: absolute;
+      right: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #666;
+      pointer-events: none;
+    }
+    .style-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    .tag {
+      padding: 6px 14px;
+      background: #1e1e1e;
+      border: 1px solid #333;
+      border-radius: 20px;
+      font-size: 0.82rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      color: #bbb;
+    }
+    .tag:hover { border-color: #ff6b35; color: #ff6b35; }
+    .tag.active { background: #ff6b35; border-color: #ff6b35; color: #fff; }
+    .btn-generate {
+      width: 100%;
+      padding: 16px;
+      background: linear-gradient(135deg, #ff6b35, #e85d26);
+      border: none;
+      border-radius: 12px;
+      color: #fff;
+      font-size: 1.1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      position: relative;
+      overflow: hidden;
+    }
+    .btn-generate:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(255,107,53,0.3); }
+    .btn-generate:active { transform: translateY(0); }
+    .btn-generate:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+    .btn-generate .spinner {
+      display: none;
+      width: 20px;
+      height: 20px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-right: 10px;
+      vertical-align: middle;
+    }
+    .btn-generate.loading .spinner { display: inline-block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .result-card {
+      display: none;
+    }
+    .result-card.show { display: block; }
+    .audio-player {
+      width: 100%;
+      margin: 16px 0;
+      border-radius: 8px;
+    }
+    .actions {
+      display: flex;
+      gap: 12px;
+      margin-top: 12px;
+    }
+    .btn-download {
+      flex: 1;
+      padding: 12px;
+      background: #1a1a1a;
+      border: 1px solid #333;
+      border-radius: 10px;
+      color: #e0e0e0;
+      font-size: 0.95rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-align: center;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    .btn-download:hover { border-color: #ff6b35; color: #ff6b35; }
+    .error-msg {
+      display: none;
+      background: #2a1515;
+      border: 1px solid #5a2020;
+      border-radius: 10px;
+      padding: 14px;
+      color: #ff6b6b;
+      font-size: 0.9rem;
+      margin-top: 12px;
+    }
+    .error-msg.show { display: block; }
+    .char-count {
+      text-align: right;
+      font-size: 0.8rem;
+      color: #555;
+      margin-top: 4px;
+    }
+    .model-tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    .model-tab {
+      flex: 1;
+      padding: 10px;
+      background: #1a1a1a;
+      border: 1px solid #333;
+      border-radius: 10px;
+      color: #999;
+      font-size: 0.85rem;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.2s;
+    }
+    .model-tab:hover { border-color: #555; }
+    .model-tab.active { border-color: #ff6b35; color: #ff6b35; background: rgba(255,107,53,0.08); }
+    .hidden { display: none !important; }
+    footer {
+      text-align: center;
+      margin-top: 40px;
+      color: #444;
+      font-size: 0.8rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>🎙️ MiMo TTS Studio</h1>
+      <p>基于 Xiaomi MiMo-V2.5-TTS 的语音合成工具</p>
+    </header>
+
+    <!-- API Key -->
+    <div class="card">
+      <label>API Key <span style="color:#ff6b35;font-size:0.75rem">* 必填</span></label>
+      <div style="position:relative">
+        <input type="password" id="apiKeyInput" placeholder="输入你的 MiMo API Key……" style="padding-right:42px">
+        <button id="toggleKeyBtn" onclick="toggleKeyVisibility()" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:#666;cursor:pointer;font-size:1.1rem" title="显示/隐藏">👁️</button>
+      </div>
+      <div style="margin-top:8px;font-size:0.78rem;color:#555">
+        从 <a href="https://mimo.xiaomi.com" target="_blank" style="color:#ff6b35;text-decoration:none">mimo.xiaomi.com</a> 获取 API Key · Key 仅在当前会话中保存，不会上传到服务器
+      </div>
+    </div>
+
+    <!-- Model Selection -->
+    <div class="model-tabs">
+      <div class="model-tab active" data-model="mimo-v2.5-tts" onclick="switchModel(this)">
+        🎤 预置音色
+      </div>
+      <div class="model-tab" data-model="mimo-v2.5-tts-voicedesign" onclick="switchModel(this)">
+        🎨 音色设计
+      </div>
+    </div>
+
+    <!-- Text Input -->
+    <div class="card">
+      <label>合成文本</label>
+      <textarea id="textInput" placeholder="输入要合成的文字……&#10;&#10;例如：这么多年过去了，再走过那条街，心里一下子空了一块。" oninput="updateCharCount()"></textarea>
+      <div class="char-count"><span id="charCount">0</span> 字</div>
+    </div>
+
+    <!-- Voice & Style -->
+    <div class="card">
+      <div class="row" id="presetVoiceRow">
+        <div>
+          <label>音色选择</label>
+          <div class="select-wrap">
+            <select id="voiceSelect">
+              <option value="冰糖">🍬 冰糖（中文·女）</option>
+              <option value="茉莉">🌸 茉莉（中文·女）</option>
+              <option value="苏打">🧊 苏打（中文·男）</option>
+              <option value="白桦">🌳 白桦（中文·男）</option>
+              <option value="Mia">✨ Mia（英文·女）</option>
+              <option value="Chloe">💫 Chloe（英文·女）</option>
+              <option value="Milo">🎯 Milo（英文·男）</option>
+              <option value="Dean">🎩 Dean（英文·男）</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <label>风格/情绪（可选）</label>
+          <input type="text" id="styleInput" placeholder="如：温柔、开心、磁性、东北话……">
+        </div>
+      </div>
+
+      <!-- Voice Design Description -->
+      <div id="voiceDesignSection" class="hidden">
+        <label>音色描述</label>
+        <textarea id="voiceDesignInput" style="min-height:80px" placeholder="描述你想要的音色，例如：一位年迈的老先生，说带北方口音的普通话，语速缓慢而沉稳，嗓音略带沙哑和沧桑感……"></textarea>
+      </div>
+
+      <!-- Quick Style Tags -->
+      <div id="styleTagsSection">
+        <label>快速风格</label>
+        <div class="style-tags">
+          <span class="tag" onclick="toggleTag(this)">温柔</span>
+          <span class="tag" onclick="toggleTag(this)">开心</span>
+          <span class="tag" onclick="toggleTag(this)">悲伤</span>
+          <span class="tag" onclick="toggleTag(this)">愤怒</span>
+          <span class="tag" onclick="toggleTag(this)">磁性</span>
+          <span class="tag" onclick="toggleTag(this)">活泼</span>
+          <span class="tag" onclick="toggleTag(this)">慵懒</span>
+          <span class="tag" onclick="toggleTag(this)">严肃</span>
+          <span class="tag" onclick="toggleTag(this)">东北话</span>
+          <span class="tag" onclick="toggleTag(this)">四川话</span>
+          <span class="tag" onclick="toggleTag(this)">粤语</span>
+          <span class="tag" onclick="toggleTag(this)">唱歌</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Generate Button -->
+    <button class="btn-generate" id="btnGenerate" onclick="generate()">
+      <span class="spinner"></span>
+      <span class="btn-text">生成语音</span>
+    </button>
+
+    <!-- Error -->
+    <div class="error-msg" id="errorMsg"></div>
+
+    <!-- Result -->
+    <div class="card result-card" id="resultCard">
+      <label>合成结果</label>
+      <audio class="audio-player" id="audioPlayer" controls></audio>
+      <div class="actions">
+        <a class="btn-download" id="btnDownload" download="tts_output.wav">
+          ⬇️ 下载音频
+        </a>
+        <button class="btn-download" onclick="generate()">
+          🔄 重新生成
+        </button>
+      </div>
+    </div>
+
+    <footer>
+      Powered by Xiaomi MiMo-V2.5-TTS API
+    </footer>
+  </div>
+
+  <script>
+    let currentModel = 'mimo-v2.5-tts';
+
+    // Load saved API key from sessionStorage
+    const savedKey = sessionStorage.getItem('mimo_api_key');
+    if (savedKey) document.getElementById('apiKeyInput').value = savedKey;
+
+    // Save API key on change
+    document.getElementById('apiKeyInput').addEventListener('input', (e) => {
+      const key = e.target.value.trim();
+      if (key) sessionStorage.setItem('mimo_api_key', key);
+      else sessionStorage.removeItem('mimo_api_key');
+    });
+
+    function toggleKeyVisibility() {
+      const input = document.getElementById('apiKeyInput');
+      const btn = document.getElementById('toggleKeyBtn');
+      if (input.type === 'password') {
+        input.type = 'text';
+        btn.textContent = '🙈';
+      } else {
+        input.type = 'password';
+        btn.textContent = '👁️';
+      }
+    }
+
+    function switchModel(el) {
+      document.querySelectorAll('.model-tab').forEach(t => t.classList.remove('active'));
+      el.classList.add('active');
+      currentModel = el.dataset.model;
+
+      const isPreset = currentModel === 'mimo-v2.5-tts';
+      document.getElementById('presetVoiceRow').classList.toggle('hidden', !isPreset);
+      document.getElementById('voiceDesignSection').classList.toggle('hidden', isPreset);
+      document.getElementById('styleTagsSection').classList.toggle('hidden', !isPreset);
+    }
+
+    function toggleTag(el) {
+      el.classList.toggle('active');
+      const activeTags = [...document.querySelectorAll('.tag.active')].map(t => t.textContent);
+      document.getElementById('styleInput').value = activeTags.join('，');
+    }
+
+    function updateCharCount() {
+      document.getElementById('charCount').textContent = document.getElementById('textInput').value.length;
+    }
+
+    async function generate() {
+      const text = document.getElementById('textInput').value.trim();
+      if (!text) {
+        showError('请输入要合成的文字');
+        return;
+      }
+
+      const btn = document.getElementById('btnGenerate');
+      const btnText = btn.querySelector('.btn-text');
+      btn.classList.add('loading');
+      btn.disabled = true;
+      btnText.textContent = '合成中…';
+      hideError();
+
+      try {
+        const apiKey = document.getElementById('apiKeyInput').value.trim();
+        if (!apiKey) {
+          showError('请先输入你的 API Key');
+          return;
+        }
+
+        const messages = [];
+
+        if (currentModel === 'mimo-v2.5-tts-voicedesign') {
+          const voiceDesign = document.getElementById('voiceDesignInput').value.trim();
+          if (voiceDesign) messages.push({ role: 'user', content: voiceDesign });
+        } else {
+          const style = document.getElementById('styleInput').value.trim();
+          if (style) messages.push({ role: 'user', content: style });
+        }
+
+        messages.push({ role: 'assistant', content: text });
+
+        const audioConfig = { format: 'wav' };
+        if (currentModel === 'mimo-v2.5-tts') {
+          audioConfig.voice = document.getElementById('voiceSelect').value;
+        }
+
+        const resp = await fetch('https://api.xiaomimimo.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'api-key': apiKey,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: currentModel,
+            messages,
+            audio: audioConfig,
+          }),
+        });
+
+        const data = await resp.json();
+
+        if (!resp.ok) {
+          throw new Error(data.error?.message || data.error || '请求失败');
+        }
+
+        const audioData = data.choices?.[0]?.message?.audio?.data;
+        if (!audioData) {
+          throw new Error('未返回音频数据');
+        }
+
+        // Decode base64 audio and play
+        const audioBytes = atob(audioData);
+        const byteArray = new Uint8Array(audioBytes.length);
+        for (let i = 0; i < audioBytes.length; i++) {
+          byteArray[i] = audioBytes.charCodeAt(i);
+        }
+        const blob = new Blob([byteArray], { type: 'audio/wav' });
+        const audioUrl = URL.createObjectURL(blob);
+
+        const player = document.getElementById('audioPlayer');
+        player.src = audioUrl;
+
+        const downloadBtn = document.getElementById('btnDownload');
+        downloadBtn.href = audioUrl;
+        downloadBtn.download = `tts_${Date.now()}.wav`;
+
+        document.getElementById('resultCard').classList.add('show');
+        player.play();
+      } catch (err) {
+        showError(err.message);
+      } finally {
+        btn.classList.remove('loading');
+        btn.disabled = false;
+        btnText.textContent = '生成语音';
+      }
+    }
+
+    function showError(msg) {
+      const el = document.getElementById('errorMsg');
+      el.textContent = '❌ ' + msg;
+      el.classList.add('show');
+    }
+    function hideError() {
+      document.getElementById('errorMsg').classList.remove('show');
+    }
+
+    // Enter key to generate (Ctrl+Enter in textarea)
+    document.getElementById('textInput').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && e.ctrlKey) {
+        e.preventDefault();
+        generate();
+      }
+    });
+  </script>
+</body>
+</html>

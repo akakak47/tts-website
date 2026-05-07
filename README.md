@@ -56,12 +56,25 @@ node server.js
 
 ```
 tts-website/
-├── server.js          # Express 后端，转发请求到 MiMo API
+├── server.js          # Node.js 后端（本地部署用）
 ├── public/
-│   └── index.html     # 前端单页面（HTML + CSS + JS）
+│   └── index.html     # 前端页面（配合 server.js 使用）
+├── docs/
+│   └── index.html     # 纯静态版本（GitHub Pages 部署用）
 ├── package.json
 └── README.md
 ```
+
+## 部署到 GitHub Pages
+
+项目提供纯静态版本（`docs/` 目录），可直接部署到 GitHub Pages，无需服务器。
+
+1. 在 GitHub 仓库中进入 **Settings → Pages**
+2. **Source** 选择 `Deploy from a branch`
+3. **Branch** 选择 `main`，文件夹选择 `/docs`
+4. 保存后等待几分钟，访问 `https://akakak47.github.io/tts-website`
+
+> 纯静态版本直接从浏览器调用 MiMo API，用户需自行输入 API Key。
 
 ## API 说明
 
@@ -98,8 +111,9 @@ tts-website/
 
 ## 技术栈
 
-- **后端：** Node.js + Express
+- **后端（本地部署）：** Node.js + Express
 - **前端：** 原生 HTML/CSS/JS（无框架依赖）
+- **静态部署：** 直接调用 MiMo API（浏览器端，CORS 支持）
 - **API：** MiMo-V2.5-TTS（OpenAI 兼容格式）
 
 ## License
